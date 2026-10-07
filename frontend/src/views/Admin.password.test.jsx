@@ -114,6 +114,24 @@ describe('Admin → Reset password', () => {
 })
 
 describe('Admin → sign-in e-mail', () => {
+  it('creates an account and sends its generated credentials from the invite card', async () => {
+    mocks.answers['/api/admin/users'] = { users: [], invite_only: true, password_login: true, email_invites: true }
+    mocks.answers['/api/admin/invites/email'] = { ok: true, email: 'ana@example.com', user: { id: 'u2', name: 'ana' } }
+    const page = render(<Admin />)
+    await settle()
+    const email = page.querySelector('[aria-label="Invite e-mail"]')
+    const name = page.querySelector('[aria-label="Profile name"]')
+    expect(email).toBeTruthy(); expect(name).toBeTruthy()
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(email, 'ana@example.com')
+      email.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+    expect(name.value).toBe('ana')
+    await act(async () => { page.querySelector('.adm-email-invite').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })) })
+    await settle()
+    expect(mocks.posts).toContainEqual({ path: '/api/admin/invites/email', body: { email: 'ana@example.com', name: 'ana' } })
+  })
+
   it('shows the address in the list and on the profile, and names it on the reset code sheet', async () => {
     mocks.answers['/api/admin/users'] = { users: [{ id: 'u1', name: 'Mallory', workouts: 0, lastSync: null, disabled: false, password: true, email: 'mallory@example.com' }], invite_only: false, password_login: true }
     mocks.answers['/api/admin/user'] = detail({ password: true, email: 'mallory@example.com', resetUntil: null })

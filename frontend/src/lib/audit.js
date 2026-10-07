@@ -58,6 +58,7 @@ const LABELS = {
   'admin.user.delete': 'Deleted an account',
   'admin.password.reset': 'Issued a password reset code',
   'admin.invite.create': 'Created an invite code',
+  'admin.invite.email': 'Sent an account invitation by e-mail',
   'admin.invite.revoke': 'Revoked an invite code',
   'admin.audit.clear': 'Cleared the activity log',
   'admin.denied': 'Blocked from the admin dashboard',

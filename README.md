@@ -155,6 +155,9 @@ Traefik and nginx, and there are separate guides for
 | `INVITE_ONLY` | Require an invite code to create a profile | *(off)* |
 | `ALLOW_GUEST` | Offer "Continue without account"; `0` requires a profile | *(on)* |
 | `PASSWORD_LOGIN` | Offer name-and-password sign-in next to passkeys | *(off)* |
+| `RESEND_API_KEY` | Enable admin-created accounts delivered by e-mail through Resend | *(none)* |
+| `INVITE_FROM` | Verified sender for account invitations (`Name <mail@example.com>`) | `RESEND_FROM_EMAIL` |
+| `PUBLIC_URL` | Link included in invitation e-mails | `ORIGIN` |
 | `TRUST_PROXY` | Let the sign-in throttle read the client address from proxy headers | `1` in `docker-compose.yml` |
 | `AUDIT_LOG` | Record sign-ins and admin actions; `0` records nothing | *(on)* |
 | `AUDIT_MAX` | Events kept in the activity log; `0` for no limit | `5000` |

@@ -2254,6 +2254,62 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
               example: { error: "no such code" }
 
+  /api/admin/invites/email:
+    post:
+      tags: [admin, password]
+      operationId: adminInviteEmail
+      summary: 'Admin: create an account and e-mail its initial credentials'
+      description: >-
+        Requires PASSWORD_LOGIN plus RESEND_API_KEY and INVITE_FROM (or
+        RESEND_FROM_EMAIL). Creates a password profile with a random initial password and
+        sends the sign-in URL, profile name and password through Resend. The plaintext
+        password is never returned or stored. If delivery fails, the account and its used
+        invite record are removed again. Audited.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email]
+              properties:
+                name: { type: string, maxLength: 40 }
+                email: { type: string, format: email, maxLength: 254 }
+      responses:
+        '200':
+          description: Account created and message accepted by the mail service.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  user: { $ref: '#/components/schemas/SessionUser' }
+                  email: { type: string, format: email }
+                  delivery: { type: string }
+        '400':
+          description: Invalid or missing name/e-mail, or password sign-in is disabled.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409':
+          description: The profile name or e-mail is already in use.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '502':
+          description: Delivery failed and no account was retained.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503':
+          description: E-mail invitations are not configured.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
   /api/admin/audit:
     get:
       tags: [admin]

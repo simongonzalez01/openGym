@@ -149,8 +149,12 @@ function UserDetail({ id, onChanged, close }) {
   </>
 }
 
-function InvitesCard({ invites, reload, inviteOnly }) {
+function InvitesCard({ invites, reload, reloadUsers, inviteOnly, emailInvites }) {
   const toast = useUI(s => s.toast)
+  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const [nameEdited, setNameEdited] = useState(false)
+  const [sending, setSending] = useState(false)
   const gen = () => api('/api/admin/invites/new', { method: 'POST', body: '{}' })
     .then(({ invite }) => { navigator.clipboard?.writeText(invite.code).catch(() => {}); toast('Code ' + invite.code + ' created & copied'); reload() })
     .catch(e => toast(e.message))
@@ -161,6 +165,22 @@ function InvitesCard({ invites, reload, inviteOnly }) {
       .then(() => { toast('Code revoked'); reload() }).catch(e => toast(e.message))
   })
   const copy = code => { navigator.clipboard?.writeText(code).catch(() => {}); toast('Copied ' + code) }
+  const emailChanged = value => {
+    setEmail(value)
+    if (!nameEdited) setName(value.split('@')[0].replace(/[._-]+/g, ' ').trim().slice(0, 40))
+  }
+  const sendEmailInvite = e => {
+    e.preventDefault()
+    if (!email.trim() || !name.trim() || sending) return
+    setSending(true)
+    api('/api/admin/invites/email', { method: 'POST', body: JSON.stringify({ email: email.trim(), name: name.trim() }) })
+      .then(r => {
+        toast('Account created and invitation sent to ' + r.email)
+        setEmail(''); setName(''); setNameEdited(false); reload(); reloadUsers?.()
+      })
+      .catch(e => toast(e.message))
+      .finally(() => setSending(false))
+  }
   const open = (invites || []).filter(i => !i.usedBy)
   const used = (invites || []).filter(i => i.usedBy)
   return <div className="card">
@@ -171,6 +191,15 @@ function InvitesCard({ invites, reload, inviteOnly }) {
         ? 'Sign-up is invite-only: someone needs one of these codes to create a profile. Each code works once.'
         : 'Sign-up is open, so codes are optional here — they only record who invited whom.'}
     </div>
+    {emailInvites && <form onSubmit={sendEmailInvite} className="adm-email-invite">
+      <div className="adm-group-t">Invite by e-mail</div>
+      <div className="adm-lead" style={{ marginTop: 0 }}>Creates the profile now and sends a random initial password. The person can sign in with either their e-mail or profile name.</div>
+      <input className="input" type="email" autoComplete="off" placeholder="person@example.com" aria-label="Invite e-mail"
+        value={email} onChange={e => emailChanged(e.target.value)} required />
+      <input className="input" autoComplete="off" maxLength={40} placeholder="Profile name" aria-label="Profile name"
+        value={name} onChange={e => { setNameEdited(true); setName(e.target.value) }} required />
+      <Button variant="primary" type="submit" disabled={sending || !email.trim() || !name.trim()}>{sending ? 'Sending…' : 'Create account & send'}</Button>
+    </form>}
     {open.length ? <>
       <div className="adm-group-t">Unused · tap to copy</div>
       {open.map(i => <div key={i.code} className="row between" style={{ padding: '6px 0', borderBottom: 'var(--hair) solid var(--sep)' }}>
@@ -258,6 +287,7 @@ export default function Admin() {
   const [usersErr, setUsersErr] = useState(null)   // why the last load failed, until one succeeds
   const [invites, setInvites] = useState(null)
   const [inviteOnly, setInviteOnly] = useState(false)
+  const [emailInvites, setEmailInvites] = useState(false)
   const [tick, setTick] = useState(0)          // the ↻ button; the activity log listens to it
 
   // A failed load, or an answer without a list, used to leave the page on "Loading…" for good —
@@ -267,7 +297,7 @@ export default function Admin() {
   const loadUsers = () => api('/api/admin/users')
     .then(d => {
       if (!Array.isArray(d?.users)) throw new Error('The server answered without a list of users.')
-      setUsers(d.users); setInviteOnly(!!d.invite_only); setUsersErr(null)
+      setUsers(d.users); setInviteOnly(!!d.invite_only); setEmailInvites(!!d.email_invites); setUsersErr(null)
     })
     .catch(e => setUsersErr(e.message || 'Failed to load'))
   const loadInvites = () => api('/api/admin/invites').then(d => setInvites(d.invites)).catch(() => {})
@@ -320,7 +350,7 @@ export default function Admin() {
         page on a box that never enabled it is byte-for-byte the page it was before. */}
     <AdminCoach />
 
-    <InvitesCard invites={invites} reload={loadInvites} inviteOnly={inviteOnly} />
+    <InvitesCard invites={invites} reload={loadInvites} reloadUsers={loadUsers} inviteOnly={inviteOnly} emailInvites={emailInvites} />
 
     <div className="card">
       <h2 style={{ margin: 0 }}>Users</h2>

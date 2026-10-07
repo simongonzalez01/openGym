@@ -31,6 +31,7 @@ import {
 } from './passkeys-store.js';
 import { createDeviceLink, findDeviceLink, burnDeviceLink, dropDeviceLinks } from './device-link.js';
 import { createMediaStore, mediaLimits, mediaConfig, MediaError, HASH_RE } from './media.js';
+import { makeInitialPassword, sendAccountInvite } from './invite-email.js';
 
 const PORT = +(process.env.PORT || 3000);
 const DATA = process.env.DATA_DIR || '/data';
@@ -50,6 +51,13 @@ const ALLOW_GUEST = !/^(0|false|no|off)$/i.test(process.env.ALLOW_GUEST || '');
 // every account that opts in, so an instance has to ask for it. While it is off every password
 // route answers 404 and the app shows none of it; hashes already stored stay where they are.
 const PASSWORD_LOGIN = /^(1|true|yes|on)$/i.test(process.env.PASSWORD_LOGIN || '');
+// Optional admin-created accounts delivered through Resend. The token is server-side only and
+// the feature is advertised to the admin UI only when every required setting is present.
+const RESEND_API_KEY = String(process.env.RESEND_API_KEY || '').trim();
+const INVITE_FROM = String(process.env.INVITE_FROM || process.env.RESEND_FROM_EMAIL || '').trim();
+const INVITE_EMAIL_URL = String(process.env.RESEND_API_URL || 'https://api.resend.com/emails').trim();
+const INVITE_APP_URL = String(process.env.PUBLIC_URL || ORIGIN).trim().replace(/\/$/, '');
+const EMAIL_INVITES = PASSWORD_LOGIN && !!RESEND_API_KEY && !!INVITE_FROM;
 // The language the sign-in screen, and every profile that never picked one, starts in (#303) —
 // for an instance whose people share a language. Only a tag's shape is checked here; the app
 // matches it against the languages it has and ignores one it does not know. Unset, it is left
@@ -2191,7 +2199,11 @@ const routes = {
         ...(PASSWORD_LOGIN ? { password: hasPassword(u), email: u.email || null } : {})
       };
     });
-    json(res, 200, { users, invite_only: INVITE_ONLY, ...(PASSWORD_LOGIN ? { password_login: true } : {}), now: Date.now() });
+    json(res, 200, {
+      users, invite_only: INVITE_ONLY,
+      ...(PASSWORD_LOGIN ? { password_login: true, email_invites: EMAIL_INVITES } : {}),
+      now: Date.now()
+    });
   },
 
   // Drill-down: full workout history + body-weight log for one user.
@@ -2286,6 +2298,58 @@ const routes = {
     saveDb();
     audit(req, 'admin.invite.create', { user: admin, msg: code });
     json(res, 200, { invite });
+  },
+
+  // Create a password account and send its random initial credentials. This is deliberately an
+  // admin action rather than a public "forgot password" path: the owner decides who joins, and
+  // neither the Resend key nor the generated password is returned to the browser or stored in
+  // plaintext. A failed delivery rolls the account and its already-used invite record back.
+  'POST /api/admin/invites/email': async (req, res) => {
+    const admin = requireAdmin(req, res); if (!admin) return;
+    if (!PASSWORD_LOGIN) return json(res, 400, { error: 'password sign-in is not enabled', code: 'password-disabled' });
+    if (!EMAIL_INVITES) return json(res, 503, { error: 'email invitations are not configured', code: 'email-not-configured' });
+    const body = await readBody(req);
+    const name = text(body.name).trim().slice(0, 40);
+    const email = normalizeEmail(body.email);
+    if (!name) return json(res, 400, { error: 'name required', code: 'missing' });
+    if (!email) return json(res, 400, EMAIL_ERRORS.invalid);
+    if (nameTaken(name)) return json(res, 409, { error: 'another profile already signs in with this name', code: 'name-taken' });
+    if (emailTaken(email)) return json(res, 409, EMAIL_ERRORS.taken);
+
+    const password = makeInitialPassword();
+    const h = await hashPassword(password);
+    // Re-check after the asynchronous hash so two simultaneous admin submissions cannot claim
+    // the same identifier.
+    if (nameTaken(name)) return json(res, 409, { error: 'another profile already signs in with this name', code: 'name-taken' });
+    if (emailTaken(email)) return json(res, 409, EMAIL_ERRORS.taken);
+
+    let code;
+    do { code = crypto.randomBytes(8).toString('hex').toUpperCase(); } while (db.invites.some(i => i.code === code));
+    const created = new Date().toISOString();
+    const user = {
+      id: crypto.randomBytes(12).toString('base64url'), name, email, created,
+      pw: { h, set: created }, invitedBy: code
+    };
+    const invite = {
+      code, note: 'Sent by e-mail', createdBy: admin.id, created,
+      usedBy: user.id, usedAt: created
+    };
+    db.users.push(user); db.invites.push(invite); saveDb();
+    try {
+      const delivery = await sendAccountInvite({
+        apiKey: RESEND_API_KEY, apiUrl: INVITE_EMAIL_URL, from: INVITE_FROM,
+        to: email, name, password, appUrl: INVITE_APP_URL
+      });
+      audit(req, 'admin.invite.email', { user: admin, target: user, msg: maskEmail(email) });
+      json(res, 200, { ok: true, user: publicUser(user), email, delivery: delivery.id });
+    } catch (e) {
+      db.users = db.users.filter(u => u !== user);
+      db.invites = db.invites.filter(i => i !== invite);
+      saveDb();
+      console.error('invite e-mail failed for', maskEmail(email), e.message);
+      audit(req, 'admin.invite.email', { ok: false, user: admin, target: user, msg: 'delivery-failed' });
+      json(res, 502, { error: 'the e-mail could not be sent; no account was created', code: 'email-delivery' });
+    }
   },
 
   'POST /api/admin/invites/revoke': async (req, res) => {
