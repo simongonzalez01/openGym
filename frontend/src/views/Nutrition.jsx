@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { lastBW } from '../lib/history.js'
 import { todayISO, uid } from '../lib/format.js'
-import { foodNutrients, nutritionRemaining, nutritionTargets, nutritionTotals, profileComplete, profileWeightKg } from '../lib/nutrition.js'
+import { dailyFoodPlan, dailyFoodPlanTotals, foodNutrients, nutritionRemaining, nutritionTargets, nutritionTotals, profileComplete, profileWeightKg } from '../lib/nutrition.js'
 import { t } from '../lib/i18n.js'
 import { Button, Segmented } from '../components/ui.jsx'
 import Icon from '../components/Icon.jsx'
@@ -17,6 +17,28 @@ function Macro({ label, value, target, unit = 'g', color }) {
   return <div className="nut-macro">
     <div className="row between"><span>{label}</span><span className="small muted">{Math.round(value)} / {target} {unit}</span></div>
     <div className="nut-track"><i style={{ width: `${pct(value, target)}%`, background: color }} /></div>
+  </div>
+}
+
+const basisLabel = basis => ({
+  dry: t('dry weight'),
+  cooked: t('cooked weight'),
+  edible: t('edible portion'),
+  served: t('as served'),
+}[basis] || '')
+
+function SuggestedMeal({ title, items, divisor = 1 }) {
+  return <div className="nut-meal">
+    <div className="ttl">{title}</div>
+    <div className="nut-meal-foods">{items.map(item => {
+      const grams = item.grams / divisor
+      const extra = item.key === 'eggs' ? ` · ${t('about 2 eggs')}` : ''
+      return <div className="nut-meal-food" key={item.key}>
+        <span>{t(item.name)}</span>
+        <strong>{grams} g</strong>
+        <span className="ss">{basisLabel(item.basis)}{extra}</span>
+      </div>
+    })}</div>
   </div>
 }
 
@@ -68,6 +90,13 @@ export default function Nutrition() {
   const todayFoods = foods.filter(x => x.d === day)
   const totals = useMemo(() => nutritionTotals(foods, day), [foods, day])
   const remaining = nutritionRemaining(targets, totals)
+  const suggestedFoods = useMemo(() => dailyFoodPlan(targets), [targets])
+  const suggestedTotals = useMemo(() => dailyFoodPlanTotals(targets), [targets])
+  const mealFoods = {
+    breakfast: suggestedFoods.filter(x => x.meal === 'Breakfast'),
+    snack: suggestedFoods.filter(x => x.meal === 'Snack'),
+    main: suggestedFoods.filter(x => x.meal === 'Lunch and dinner'),
+  }
 
   const saveProfile = profile => {
     update(st => { st.nutrition = { ...(st.nutrition || {}), profile, foods: st.nutrition?.foods || [] } })
@@ -99,6 +128,22 @@ export default function Nutrition() {
         <Macro label={t('Carbohydrates')} value={totals.carbs} target={targets.carbs} color="var(--orange)" />
         <Macro label={t('Fat')} value={totals.fat} target={targets.fat} color="var(--purple)" />
       </div>
+    </div>
+
+    <div className="card">
+      <h2>{t('Suggested meals')}</h2>
+      <div className="muted small" style={{ marginBottom: 14 }}>{t('An example day with exact amounts adjusted to your calorie and macro target.')}</div>
+      <div className="nut-meal-list">
+        <SuggestedMeal title={t('Breakfast')} items={mealFoods.breakfast} />
+        <SuggestedMeal title={t('Snack')} items={mealFoods.snack} />
+        <SuggestedMeal title={t('Lunch')} items={mealFoods.main} divisor={2} />
+        <SuggestedMeal title={t('Dinner')} items={mealFoods.main} divisor={2} />
+      </div>
+      <div className="nut-plan-total">
+        <div className="lbl2">{t('Daily plan total')}</div>
+        <div>{suggestedTotals.calories} kcal · {suggestedTotals.protein} g {t('protein')} · {suggestedTotals.carbs} g {t('carbs')} · {suggestedTotals.fat} g {t('fat')}</div>
+      </div>
+      <div className="muted small" style={{ marginTop: 12 }}>{t('These are reference foods and amounts. Use the package label when its values differ, and swap foods as needed while keeping the same daily totals.')}</div>
     </div>
 
     <div className="card">

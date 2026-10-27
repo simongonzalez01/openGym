@@ -585,7 +585,15 @@ body.chips-dragging *{cursor:inherit}
 .nut-food-list{display:flex;flex-direction:column}
 .nut-food{display:flex;align-items:center;gap:10px;padding:10px 0;position:relative}
 .nut-food+.nut-food::before{content:'';position:absolute;inset-inline-start:0;inset-inline-end:0;top:0;height:var(--hair);background:var(--sep)}
+.nut-meal-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.nut-meal{padding:12px;border:1px solid var(--sep);border-radius:12px;background:var(--surface-2)}
+.nut-meal-foods{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.nut-meal-food{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:baseline;column-gap:8px}
+.nut-meal-food .ss{grid-column:1/-1;margin-top:1px}
+.nut-plan-total{margin-top:12px;padding:11px 12px;border-radius:10px;background:var(--surface-3);font-size:13px;line-height:1.5}
+.nut-plan-total .lbl2{margin-bottom:2px}
 @media(max-width:380px){.nut-grid{grid-template-columns:1fr}.nut-grid-food{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.nut-meal-list{grid-template-columns:1fr}}
 .exnote{
   background:var(--surface);border-radius:var(--r);padding:13px 15px;
   line-height:1.45;white-space:pre-wrap;font-size:15px;margin-bottom:10px;color:var(--label-2);

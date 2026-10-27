@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { foodNutrients, nutritionRemaining, nutritionTargets, nutritionTotals, profileWeightKg } from './nutrition.js'
+import { dailyFoodPlan, dailyFoodPlanTotals, foodNutrients, nutritionRemaining, nutritionTargets, nutritionTotals, profileWeightKg } from './nutrition.js'
 
 describe('nutrition targets', () => {
   it('starts from Mifflin–St Jeor and applies the selected goal', () => {
@@ -26,5 +26,19 @@ describe('food log math', () => {
     const totals = nutritionTotals([rice, { ...rice, d: '2026-10-26' }], '2026-10-27')
     expect(totals).toEqual({ calories: 195, protein: 4, carbs: 42, fat: 0 })
     expect(nutritionRemaining({ calories: 100, protein: 3, carbs: 50, fat: 10 }, totals)).toEqual({ calories: 0, protein: 0, carbs: 8, fat: 10 })
+  })
+})
+
+describe('daily food quantities', () => {
+  it('turns the macro target into practical gram amounts close to every target', () => {
+    const targets = { calories: 2620, protein: 160, carbs: 351, fat: 64 }
+    const plan = dailyFoodPlan(targets)
+    const totals = dailyFoodPlanTotals(targets)
+    expect(plan.map(x => x.key)).toEqual(['oats', 'yogurt', 'eggs', 'banana', 'vegetables', 'rice', 'chicken', 'oil'])
+    expect(plan.every(x => x.grams >= 0 && x.grams % 5 === 0)).toBe(true)
+    expect(totals.protein).toBeCloseTo(targets.protein, -1)
+    expect(totals.carbs).toBeCloseTo(targets.carbs, -1)
+    expect(totals.fat).toBeCloseTo(targets.fat, -1)
+    expect(Math.abs(totals.calories - targets.calories)).toBeLessThan(100)
   })
 })
