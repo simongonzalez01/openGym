@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { lastBW } from '../lib/history.js'
 import { todayISO, uid } from '../lib/format.js'
-import { dailyFoodPlan, dailyFoodPlanTotals, foodNutrients, nutritionRemaining, nutritionTargets, nutritionTotals, profileComplete, profileWeightKg } from '../lib/nutrition.js'
+import { dailyFoodPlan, dailyFoodPlanTotals, foodAlternatives, foodNutrients, nutritionRemaining, nutritionTargets, nutritionTotals, profileComplete, profileWeightKg } from '../lib/nutrition.js'
 import { t } from '../lib/i18n.js'
 import { Button, Segmented } from '../components/ui.jsx'
 import Icon from '../components/Icon.jsx'
@@ -27,17 +27,17 @@ const basisLabel = basis => ({
   served: t('as served'),
 }[basis] || '')
 
-function SuggestedMeal({ title, items, divisor = 1 }) {
+function SuggestedMeal({ title, items, divisor = 1, selectedKey, onSelect }) {
   return <div className="nut-meal">
     <div className="ttl">{title}</div>
     <div className="nut-meal-foods">{items.map(item => {
       const grams = item.grams / divisor
       const extra = item.key === 'eggs' ? ` · ${t('about 2 eggs')}` : ''
-      return <div className="nut-meal-food" key={item.key}>
+      return <button type="button" className={`nut-meal-food${selectedKey === item.key ? ' active' : ''}`} key={item.key} onClick={() => onSelect(item)} aria-pressed={selectedKey === item.key} aria-label={t('See substitutes for {0}', t(item.name))}>
         <span>{t(item.name)}</span>
         <strong>{grams} g</strong>
         <span className="ss">{basisLabel(item.basis)}{extra}</span>
-      </div>
+      </button>
     })}</div>
   </div>
 }
@@ -82,6 +82,7 @@ export default function Nutrition() {
   const latestWeight = lastBW(S)?.w || 0
   const nutrition = S.nutrition || { profile: null, foods: [] }
   const [editing, setEditing] = useState(false)
+  const [selectedFood, setSelectedFood] = useState(null)
   const [food, setFood] = useState(EMPTY_FOOD)
   const day = todayISO()
   const complete = profileComplete(nutrition.profile, latestWeight, S.unit)
@@ -134,11 +135,16 @@ export default function Nutrition() {
       <h2>{t('Suggested meals')}</h2>
       <div className="muted small" style={{ marginBottom: 14 }}>{t('An example day with exact amounts adjusted to your calorie and macro target.')}</div>
       <div className="nut-meal-list">
-        <SuggestedMeal title={t('Breakfast')} items={mealFoods.breakfast} />
-        <SuggestedMeal title={t('Snack')} items={mealFoods.snack} />
-        <SuggestedMeal title={t('Lunch')} items={mealFoods.main} divisor={2} />
-        <SuggestedMeal title={t('Dinner')} items={mealFoods.main} divisor={2} />
+        <SuggestedMeal title={t('Breakfast')} items={mealFoods.breakfast} selectedKey={selectedFood?.key} onSelect={setSelectedFood} />
+        <SuggestedMeal title={t('Snack')} items={mealFoods.snack} selectedKey={selectedFood?.key} onSelect={setSelectedFood} />
+        <SuggestedMeal title={t('Lunch')} items={mealFoods.main} divisor={2} selectedKey={selectedFood?.key} onSelect={setSelectedFood} />
+        <SuggestedMeal title={t('Dinner')} items={mealFoods.main} divisor={2} selectedKey={selectedFood?.key} onSelect={setSelectedFood} />
       </div>
+      {selectedFood && <div className="nut-swaps">
+        <div className="row between"><div><div className="lbl2">{t('Substitutes for {0}', t(selectedFood.name))}</div><div className="ss">{t('Equivalent by the main nutrient')}</div></div><button className="iconbtn" onClick={() => setSelectedFood(null)} aria-label={t('Close')}><Icon name="xmark" /></button></div>
+        <div className="nut-swap-grid">{foodAlternatives(selectedFood).map(alt => <div className="nut-swap" key={alt.name}><span>{t(alt.name)}</span><strong>{alt.grams} g</strong><span className="ss">{basisLabel(alt.basis)}</span></div>)}</div>
+        <div className="muted small">{t('A substitute matches the main nutrient, but its other macros can differ. Check the package label.')}</div>
+      </div>}
       <div className="nut-plan-total">
         <div className="lbl2">{t('Daily plan total')}</div>
         <div>{suggestedTotals.calories} kcal · {suggestedTotals.protein} g {t('protein')} · {suggestedTotals.carbs} g {t('carbs')} · {suggestedTotals.fat} g {t('fat')}</div>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dailyFoodPlan, dailyFoodPlanTotals, foodNutrients, nutritionRemaining, nutritionTargets, nutritionTotals, profileWeightKg } from './nutrition.js'
+import { dailyFoodPlan, dailyFoodPlanTotals, foodAlternatives, foodNutrients, nutritionRemaining, nutritionTargets, nutritionTotals, profileWeightKg } from './nutrition.js'
 
 describe('nutrition targets', () => {
   it('starts from Mifflin–St Jeor and applies the selected goal', () => {
@@ -40,5 +40,13 @@ describe('daily food quantities', () => {
     expect(totals.carbs).toBeCloseTo(targets.carbs, -1)
     expect(totals.fat).toBeCloseTo(targets.fat, -1)
     expect(Math.abs(totals.calories - targets.calories)).toBeLessThan(100)
+  })
+
+  it('calculates substitute quantities from the food primary nutrient', () => {
+    const [oats] = dailyFoodPlan({ calories: 2620, protein: 160, carbs: 351, fat: 64 })
+    const alternatives = foodAlternatives(oats)
+    expect(alternatives.map(x => x.name)).toEqual(['Whole-grain bread', 'Cooked quinoa', 'Cooked rice'])
+    expect(alternatives.every(x => x.grams > 0 && x.grams % 5 === 0)).toBe(true)
+    expect(Math.abs(alternatives[0].grams * alternatives[0].carbs100 / 100 - oats.grams * oats.carbs100 / 100)).toBeLessThan(1)
   })
 })

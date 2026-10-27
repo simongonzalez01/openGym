@@ -75,14 +75,30 @@ export function profileComplete(profile, fallbackWeight, unit = 'kg') {
 // database: the screen tells the user to prefer the package label when it differs. Rice, chicken
 // and vegetables are cooked weights; oats are dry, and banana is the edible part.
 export const PLAN_FOODS = {
-  oats: { key: 'oats', name: 'Oats', meal: 'Breakfast', basis: 'dry', calories100: 389, protein100: 16.9, carbs100: 66.3, fat100: 6.9 },
-  yogurt: { key: 'yogurt', name: 'Greek yogurt 0%', meal: 'Breakfast', basis: 'served', calories100: 59, protein100: 10.3, carbs100: 3.6, fat100: 0.4 },
-  eggs: { key: 'eggs', name: 'Whole eggs', meal: 'Breakfast', basis: 'edible', calories100: 143, protein100: 12.6, carbs100: 0.7, fat100: 9.5 },
-  banana: { key: 'banana', name: 'Banana', meal: 'Snack', basis: 'edible', calories100: 89, protein100: 1.1, carbs100: 23, fat100: 0.3 },
-  rice: { key: 'rice', name: 'Cooked rice', meal: 'Lunch and dinner', basis: 'cooked', calories100: 130, protein100: 2.7, carbs100: 28.2, fat100: 0.3 },
-  chicken: { key: 'chicken', name: 'Cooked chicken breast', meal: 'Lunch and dinner', basis: 'cooked', calories100: 165, protein100: 31, carbs100: 0, fat100: 3.6 },
-  vegetables: { key: 'vegetables', name: 'Mixed vegetables', meal: 'Lunch and dinner', basis: 'cooked', calories100: 35, protein100: 2, carbs100: 7, fat100: 0.2 },
-  oil: { key: 'oil', name: 'Olive oil', meal: 'Lunch and dinner', basis: 'served', calories100: 884, protein100: 0, carbs100: 0, fat100: 100 },
+  oats: { key: 'oats', name: 'Oats', meal: 'Breakfast', basis: 'dry', swapBy: 'carbs', calories100: 389, protein100: 16.9, carbs100: 66.3, fat100: 6.9, alternatives: [
+    { name: 'Whole-grain bread', basis: 'served', carbs100: 43 }, { name: 'Cooked quinoa', basis: 'cooked', carbs100: 21.3 }, { name: 'Cooked rice', basis: 'cooked', carbs100: 28.2 },
+  ] },
+  yogurt: { key: 'yogurt', name: 'Greek yogurt 0%', meal: 'Breakfast', basis: 'served', swapBy: 'protein', calories100: 59, protein100: 10.3, carbs100: 3.6, fat100: 0.4, alternatives: [
+    { name: 'Skyr', basis: 'served', protein100: 11 }, { name: 'Low-fat cottage cheese', basis: 'served', protein100: 12.4 }, { name: 'Whey protein powder', basis: 'dry', protein100: 80 },
+  ] },
+  eggs: { key: 'eggs', name: 'Whole eggs', meal: 'Breakfast', basis: 'edible', swapBy: 'protein', calories100: 143, protein100: 12.6, carbs100: 0.7, fat100: 9.5, alternatives: [
+    { name: 'Egg whites', basis: 'served', protein100: 10.9 }, { name: 'Firm tofu', basis: 'served', protein100: 12 }, { name: 'Low-fat cottage cheese', basis: 'served', protein100: 12.4 },
+  ] },
+  banana: { key: 'banana', name: 'Banana', meal: 'Snack', basis: 'edible', swapBy: 'carbs', calories100: 89, protein100: 1.1, carbs100: 23, fat100: 0.3, alternatives: [
+    { name: 'Apple', basis: 'edible', carbs100: 13.8 }, { name: 'Orange', basis: 'edible', carbs100: 11.8 }, { name: 'Mango', basis: 'edible', carbs100: 15 },
+  ] },
+  rice: { key: 'rice', name: 'Cooked rice', meal: 'Lunch and dinner', basis: 'cooked', swapBy: 'carbs', calories100: 130, protein100: 2.7, carbs100: 28.2, fat100: 0.3, alternatives: [
+    { name: 'Cooked pasta', basis: 'cooked', carbs100: 30.9 }, { name: 'Boiled potatoes', basis: 'cooked', carbs100: 20.1 }, { name: 'Cooked sweet potato', basis: 'cooked', carbs100: 20.7 },
+  ] },
+  chicken: { key: 'chicken', name: 'Cooked chicken breast', meal: 'Lunch and dinner', basis: 'cooked', swapBy: 'protein', calories100: 165, protein100: 31, carbs100: 0, fat100: 3.6, alternatives: [
+    { name: 'Cooked turkey breast', basis: 'cooked', protein100: 29 }, { name: 'Tuna in water, drained', basis: 'drained', protein100: 25.5 }, { name: 'Cooked lean beef', basis: 'cooked', protein100: 26 },
+  ] },
+  vegetables: { key: 'vegetables', name: 'Mixed vegetables', meal: 'Lunch and dinner', basis: 'cooked', swapBy: 'grams', calories100: 35, protein100: 2, carbs100: 7, fat100: 0.2, alternatives: [
+    { name: 'Broccoli', basis: 'cooked' }, { name: 'Zucchini', basis: 'cooked' }, { name: 'Green beans', basis: 'cooked' },
+  ] },
+  oil: { key: 'oil', name: 'Olive oil', meal: 'Lunch and dinner', basis: 'served', swapBy: 'fat', calories100: 884, protein100: 0, carbs100: 0, fat100: 100, alternatives: [
+    { name: 'Avocado', basis: 'edible', fat100: 14.7 }, { name: 'Almonds', basis: 'served', fat100: 49.9 }, { name: 'Peanut butter', basis: 'served', fat100: 50 },
+  ] },
 }
 
 const amount = (food, grams) => ({ ...food, grams: Math.max(0, Math.round(grams / 5) * 5) })
@@ -107,5 +123,15 @@ export function dailyFoodPlan(targets) {
 
 export function dailyFoodPlanTotals(targets) {
   return sumPlan(dailyFoodPlan(targets))
+}
+
+export function foodAlternatives(food) {
+  if (!food?.alternatives?.length) return []
+  return food.alternatives.map(alt => {
+    const grams = food.swapBy === 'grams'
+      ? food.grams
+      : food.grams * finite(food[`${food.swapBy}100`]) / finite(alt[`${food.swapBy}100`])
+    return { ...alt, grams: round5(grams) }
+  })
 }
 
