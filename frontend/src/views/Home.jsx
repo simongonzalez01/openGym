@@ -10,6 +10,7 @@ import Icon from '../components/Icon.jsx'
 import { Button } from '../components/ui.jsx'
 import { tappable } from '../lib/use-sheet-keyboard.js'
 import { glyphOf } from '../lib/glyphs.js'
+import { nutritionRemaining, nutritionTargets, nutritionTotals, profileComplete } from '../lib/nutrition.js'
 
 // Home = what to do now + a quick glance. Deep charts & history live in Stats.
 export default function Home() {
@@ -33,6 +34,11 @@ export default function Home() {
   const bw = lastBW(S)
   const prevBW = S.bodyweight.length > 1 ? S.bodyweight[S.bodyweight.length - 2] : null
   const delta = bw && prevBW ? bw.w - prevBW.w : null
+  const nutrition = S.nutrition || { profile: null, foods: [] }
+  const nutritionReady = profileComplete(nutrition.profile, bw?.w, S.unit)
+  const nutritionGoal = nutritionTargets(nutrition.profile, bw?.w, S.unit)
+  const nutritionNow = nutritionTotals(nutrition.foods, todayISO())
+  const nutritionLeft = nutritionRemaining(nutritionGoal, nutritionNow)
 
   const ws = weekStartOf(S)
   // The first day of the shown week. Named for the role, not for Monday — which day that is
@@ -111,6 +117,20 @@ export default function Home() {
           {t('Choose a different workout')}
         </Button>
       </div>}
+    </div>
+
+    <div className="card tappable" style={{ cursor: 'pointer' }} {...tappable(() => nav('/nutrition'))}>
+      <div className="row between" style={{ gap: 12 }}>
+        <div className="row" style={{ gap: 9, minWidth: 0 }}>
+          <span className="lrow-i" style={{ background: nutritionReady ? 'var(--orange)' : 'var(--surface-3)' }}><Icon name="food" /></span>
+          <div style={{ minWidth: 0 }}>
+            <div className="lbl2">{t('Nutrition')}</div>
+            <div className="ttl">{nutritionReady ? `${nutritionNow.calories} / ${nutritionGoal.calories} kcal` : t('Calculate calories and macros')}</div>
+            <div className="ss">{nutritionReady ? t('{0} kcal · {1} g protein remaining', nutritionLeft.calories, nutritionLeft.protein) : t('Set your body-composition goal to begin.')}</div>
+          </div>
+        </div>
+        <Icon name="chevronRight" className="chev" />
+      </div>
     </div>
 
     {/* Jump to the gym check-in cards (QR membership codes). Shown here as a quick tap on

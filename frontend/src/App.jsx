@@ -41,6 +41,7 @@ import Admin from './views/Admin.jsx'
 import CoachChat from './views/CoachChat.jsx'
 import CoachIntake from './views/CoachIntake.jsx'
 import CoachSetup from './views/CoachSetup.jsx'
+import Nutrition from './views/Nutrition.jsx'
 
 // last known scrollY per route, so back-navigation can put the page where it was
 const scrollPositions = new Map()
@@ -185,6 +186,7 @@ function Shell() {
               <Route path="/stats" element={<Stats />} />
               <Route path="/history" element={<History />} />
               <Route path="/library" element={<Library />} />
+              <Route path="/nutrition" element={<Nutrition />} />
               <Route path="/muscles" element={<Muscles />} />
               <Route path="/structural-balance" element={<StructuralBalance />} />
               <Route path="/settings" element={<Settings />} />

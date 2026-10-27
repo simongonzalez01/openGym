@@ -75,6 +75,9 @@ export const DEF = {
   unit: 'kg', restSec: 90, restPauseSec: 15, sound: true, soundOnSilent: false, timerFlash: false, timedSetOvertime: false, keepAwake: true, lang: 'en',
   theme: 'dark', accent: 'lime', body: 'male', targetW: null,
   bodyweight: [], routines: [], week: {}, dayPlan: {},
+  // Nutrition lives in the same synced profile as training. Foods store the label values per
+  // 100 g plus the amount actually weighed, so totals can always be recalculated exactly.
+  nutrition: { profile: null, foods: [] },
   exWeights: {}, workouts: [], active: null, customEx: [], gifSize: 'full',
   // Stats activity heatmap metric. Profiles without this key continue to open on time.
   heatmapMetric: 'time',
